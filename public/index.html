@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>航友船务 · 船员管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e14; --card:#141b22; --border:#1e2a36; --text:#c8d6e5; --text2:#5c7a96;
+  --blue:#00b4d8; --green:#00e396; --red:#ff4757; --yellow:#ffa502; --orange:#ff6b35;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.header h1{font-size:20px;color:#fff}
+.header .nav{font-size:12px;color:var(--text2)}
+.container{padding:16px 24px;max-width:1500px;margin:0 auto}
+
+/* Ship cards */
+.ship-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px}
+.ship-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:all .2s}
+.ship-card:hover{border-color:var(--blue);transform:translateY(-1px)}
+.ship-card.active{border-color:var(--blue);box-shadow:0 0 16px rgba(0,180,216,0.12)}
+.ship-card .ship-name{font-size:15px;font-weight:700;color:#fff;margin-bottom:2px}
+.ship-card .ship-type{font-size:11px;color:var(--text2);margin-bottom:10px}
+.ship-card .crew-rows{display:flex;flex-direction:column;gap:4px}
+.ship-card .crew-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0}
+.ship-card .crew-row.on .val{color:var(--green)}
+.ship-card .crew-row.off .val{color:var(--yellow)}
+.ship-card .crew-row.wait .val{color:var(--orange)}
+.ship-card .crew-row.left .val{color:var(--red)}
+.ship-card .cert-warn{font-size:10px;color:var(--red);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+
+/* Stats */
+.stats{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.stat-item{flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center;cursor:pointer;transition:all .2s}
+.stat-item:hover{border-color:var(--blue)}
+.stat-item .num{font-size:24px;font-weight:700;color:#fff}
+.stat-item .lbl{font-size:11px;color:var(--text2);margin-top:2px}
+.stat-item.active{border-color:var(--blue);box-shadow:0 0 10px rgba(0,180,216,0.12)}
+.stat-item.s-on .num{color:var(--green)}
+.stat-item.s-off .num{color:var(--yellow)}
+.stat-item.s-wait .num{color:var(--orange)}
+.stat-item.s-left .num{color:var(--red)}
+
+/* Toolbar */
+.toolbar{display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.toolbar input[type="text"]{flex:1;min-width:180px;max-width:320px;padding:7px 12px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;outline:none}
+.toolbar input[type="text"]:focus{border-color:var(--blue)}
+.toolbar select{padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px}
+.btn{padding:7px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;white-space:nowrap}
+.btn-blue{background:var(--blue);color:#000}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--blue);color:var(--blue)}
+.btn-sm{padding:4px 10px;font-size:11px}
+
+/* Batch bar */
+.batch-bar{display:none;padding:10px 16px;background:rgba(0,180,216,0.08);border:1px solid var(--blue);border-radius:8px;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap}
+.batch-bar.show{display:flex}
+.batch-bar span{font-size:13px;color:var(--blue)}
+.batch-bar select{padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text)}
+
+/* Table */
+.section{margin-bottom:20px}
+.section h2{font-size:15px;color:#fff;margin-bottom:10px;padding-left:10px;border-left:3px solid var(--blue)}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:auto;max-height:60vh}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:rgba(0,180,216,0.08);color:var(--text2);padding:7px 8px;text-align:left;font-weight:500;font-size:11px;position:sticky;top:0;z-index:1}
+td{padding:5px 8px;border-top:1px solid var(--border);white-space:nowrap}
+tr:hover td{background:rgba(255,255,255,0.02)}
+tr.selected td{background:rgba(0,180,216,0.08)}
+
+.badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;display:inline-block}
+.badge-green{background:rgba(0,227,150,0.15);color:var(--green)}
+.badge-yellow{background:rgba(255,165,2,0.2);color:var(--yellow)}
+.badge-orange{background:rgba(255,107,53,0.2);color:var(--orange)}
+.badge-red{background:rgba(255,71,87,0.2);color:var(--red)}
+
+/* Cert dots */
+.cert-dots{display:flex;gap:3px;align-items:center}
+.cert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cert-dot.ok{background:var(--green)}
+.cert-dot.warn{background:var(--yellow)}
+.cert-dot.expired{background:var(--red)}
+.cert-dot.none{background:var(--border)}
+
+/* Status actions */
+.status-actions{display:flex;gap:3px;flex-wrap:wrap}
+.status-actions button{padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:10px;transition:all .15s}
+.status-actions button:hover{border-color:var(--blue);color:var(--blue)}
+.status-actions button.on:hover{border-color:var(--green);color:var(--green)}
+.status-actions button.off:hover{border-color:var(--yellow);color:var(--yellow)}
+.status-actions button.wait:hover{border-color:var(--orange);color:var(--orange)}
+.status-actions button.leave:hover{border-color:var(--red);color:var(--red)}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:95%;max-width:560px;max-height:85vh;overflow-y:auto}
+.modal h3{color:#fff;margin-bottom:14px;font-size:16px}
+.modal .field-group{margin-bottom:14px;padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)}
+.modal .field-group h4{font-size:13px;color:var(--blue);margin-bottom:8px}
+.modal .field-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:6px}
+.modal .field{margin-bottom:10px}
+.modal label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px}
+.modal input,.modal select{width:100%;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none}
+.modal input:focus,.modal select:focus{border-color:var(--blue)}
+.modal .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* Log */
+.log-list{font-size:12px;max-height:260px;overflow-y:auto}
+.log-item{padding:7px 12px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center}
+.log-item .time{color:var(--text2);min-width:100px;font-size:11px}
+.log-item .actor{color:var(--blue);min-width:55px}
+.log-item .detail{flex:1}
+.log-item .arrow{color:var(--text2);margin:0 4px}
+
+.checkall,.checkone{accent-color:var(--blue)}
+.loading{text-align:center;padding:30px;color:var(--text2)}
+
+@media(max-width:768px){
+  .ship-cards{grid-template-columns:repeat(2,1fr)}
+  .stats{flex-wrap:wrap}
+  .stat-item{min-width:70px}
+  .toolbar{flex-direction:column;align-items:stretch}
+  .toolbar input[type="text"]{max-width:none}
+  .modal .field-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>👥 航友船务 · 船员管理</h1>
+  <div class="nav" id="headerRight">
+    <span id="lockStatus" style="margin-right:12px;font-size:12px;color:var(--red)">🔒 只读模式</span>
+    <input type="password" id="adminPwd" placeholder="管理员密码" style="width:120px;padding:5px 10px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:12px;outline:none" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn btn-blue btn-sm" onclick="login()" id="loginBtn">登录管理</button>
+    <button class="btn btn-outline btn-sm" onclick="logout()" id="logoutBtn" style="display:none">退出</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Category tabs -->
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+    <button class="btn btn-blue btn-sm cat-tab active" data-cat="all" onclick="setCategory('all')">📋 全部</button>
+    <button class="btn btn-outline btn-sm cat-tab" data-cat="自有" onclick="setCategory('自有')">🚢 自有船舶</button>
+    <button class="btn btn-outline btn-sm cat-tab" data-cat="劳务" onclick="setCategory('劳务')">🔗 劳务船舶</button>
+    <button class="btn btn-blue btn-sm admin-only" onclick="showShipModal()" style="margin-left:auto">+ 添加船舶</button>
+  </div>
+
+  <!-- Ship cards -->
+  <div class="ship-cards" id="shipCards"></div>
+
+  <!-- Stats -->
+  <div class="stats" id="statsBar">
+    <div class="stat-item active" data-filter="all"><div class="num" id="statAll">-</div><div class="lbl">全部船员</div></div>
+    <div class="stat-item s-on" data-filter="在船"><div class="num" id="statOn">-</div><div class="lbl">在船</div></div>
+    <div class="stat-item s-off" data-filter="休假"><div class="num" id="statOff">-</div><div class="lbl">休假</div></div>
+    <div class="stat-item s-wait" data-filter="待派"><div class="num" id="statWait">-</div><div class="lbl">待派</div></div>
+    <div class="stat-item s-left" data-filter="已离职"><div class="num" id="statLeft">-</div><div class="lbl">已离职</div></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="🔍 搜索姓名、职位、船名、证书编号...">
+    <select id="positionFilter"><option value="">全部职位</option></select>
+    <button class="btn btn-outline" onclick="clearFilters()">✕ 清除</button>
+    <button class="btn btn-blue admin-only" onclick="showAddModal()">+ 添加船员</button>
+    <button class="btn btn-outline admin-only" onclick="document.getElementById('fileInput').click()">📁 批量导入</button>
+    <a class="btn btn-outline admin-only" href="#" onclick="downloadTemplate();return false" style="font-size:11px;text-decoration:none" title="下载Excel模板">📥 模板</a>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="uploadFile(this)">
+    <span style="font-size:11px;color:var(--text2)">已显示 <b id="filteredCount">0</b> 人</span>
+  </div>
+
+  <!-- Upload result -->
+  <div id="uploadMsg" style="display:none;padding:10px 16px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
+
+  <!-- Batch bar -->
+  <div class="batch-bar" id="batchBar">
+    <span id="batchCount">已选 0 人</span>
+    <span>调入：</span>
+    <select id="batchShip"></select>
+    <button class="btn btn-blue btn-sm" onclick="batchReassign()">确认调入</button>
+    <button class="btn btn-outline btn-sm" onclick="clearSelection()">取消</button>
+  </div>
+
+  <!-- Crew table -->
+  <div class="section">
+    <h2>船员列表</h2>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th class="admin-only" style="width:28px"><input type="checkbox" class="checkall" onchange="toggleAll(this)"></th>
+        <th>姓名</th><th>年龄</th><th>职位</th><th>船舶</th><th>电话</th><th>状态</th>
+        <th>适任证书</th><th>健康证</th><th>培训合格证</th><th>保险</th>
+        <th>薪资</th>
+        <th class="admin-only" style="width:170px">操作</th>
+      </tr></thead>
+      <tbody id="crewTable"><tr><td class="loading" colspan="10">加载中...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="section">
+    <h2>📝 操作记录</h2>
+    <div class="table-wrap"><div class="log-list" id="logList"><div class="loading">加载中...</div></div></div>
+  </div>
+</div>
+
+<!-- Ship Edit Modal -->
+<div class="modal-overlay" id="shipModal">
+  <div class="modal">
+    <h3 id="shipModalTitle">添加船舶</h3>
+    <input type="hidden" id="sEditId">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="field"><label>船名 *</label><input type="text" id="sName"></div>
+      <div class="field"><label>类型</label><select id="sType"><option value="">选择</option><option>交通艇</option><option>交通船</option><option>锚艇</option><option>锚-拖</option><option>拖轮</option><option>起重船</option><option>驳船</option><option>其他</option></select></div>
+      <div class="field"><label>状态</label><select id="sStatus"><option value="在航">在航</option><option value="维修中">维修中</option><option value="待投用">待投用</option><option value="停用">停用</option></select></div>
+      <div class="field"><label>港口</label><input type="text" id="sPort" placeholder="母港"></div>
+      <div class="field"><label>定员</label><input type="number" id="sCrewLimit" min="1" placeholder="船员上限"></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-red btn-sm" id="sDeleteBtn" style="display:none;margin-right:auto" onclick="deleteShip(parseInt(document.getElementById('sEditId').value),document.getElementById('sName').value)">🗑 删除船舶</button>
+      <button class="btn btn-outline" onclick="closeShipModal()">取消</button>
+      <button class="btn btn-blue" onclick="saveShip()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="crewModal">
+  <div class="modal">
+    <h3 id="modalTitle">添加船员</h3>
+    <input type="hidden" id="editId">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="field"><label>姓名 *</label><input type="text" id="fName"></div>
+      <div class="field"><label>年龄</label><input type="number" id="fAge" min="18" max="70"></div>
+      <div class="field"><label>职位</label><select id="fPosition"><option value="">选择</option></select></div>
+      <div class="field"><label>所属船舶</label><select id="fShip"><option value="">未分配</option></select></div>
+      <div class="field"><label>电话</label><input type="text" id="fPhone"></div>
+      <div class="field"><label>薪资 (元/月)</label><input type="number" id="fSalary" min="0" placeholder="月薪"></div>
+      <div class="field"><label>状态</label><select id="fStatus"><option value="在船">在船</option><option value="休假">休假</option><option value="待派">待派</option><option value="已离职">已离职</option></select></div>
+    </div>
+
+    <div class="field-group">
+      <h4>📜 适任证书</h4>
+      <div class="field-row">
+        <div class="field"><label>证书编号</label><input type="text" id="fCompNum"></div>
+        <div class="field"><label>发证日期</label><input type="date" id="fCompIssue"></div>
+        <div class="field"><label>到期日期</label><input type="date" id="fCompExpiry"></div>
+      </div>
+    </div>
+    <div class="field-group">
+      <h4>🏥 船员健康证</h4>
+      <div class="field-row">
+        <div class="field"><label>证书编号</label><input type="text" id="fHealthNum"></div>
+        <div class="field"><label>发证日期</label><input type="date" id="fHealthIssue"></div>
+        <div class="field"><label>到期日期</label><input type="date" id="fHealthExpiry"></div>
+      </div>
+    </div>
+    <div class="field-group">
+      <h4>📋 培训合格证</h4>
+      <div class="field-row">
+        <div class="field"><label>证书编号</label><input type="text" id="fTrainNum"></div>
+        <div class="field"><label>发证日期</label><input type="date" id="fTrainIssue"></div>
+        <div class="field"><label>到期日期</label><input type="date" id="fTrainExpiry"></div>
+      </div>
+    </div>
+    <div class="field-group">
+      <h4>🏥 保险/社保</h4>
+      <div class="field-row">
+        <div class="field"><label>险种</label><input type="text" id="fInsType" placeholder="如：雇主责任险"></div>
+        <div class="field"><label>保单号</label><input type="text" id="fInsNum"></div>
+        <div class="field"><label>生效日期</label><input type="date" id="fInsIssue"></div>
+      </div>
+      <div class="field" style="margin-top:6px"><label>到期日期</label><input type="date" id="fInsExpiry"></div>
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-red btn-sm" id="crewDeleteBtn" style="display:none;margin-right:auto" onclick="deleteCrew()">🗑 删除船员</button>
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-blue" onclick="saveCrew()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API=location.protocol+'//'+location.hostname+':'+location.port;
+const ADMIN_PWD='hangyou888';
+let crew=[],ships=[],currentFilter='all',selectedIds=new Set(),currentShip='',isAdmin=false,currentCategory='all';
+
+function setCategory(cat){
+  currentCategory=cat;currentShip='';currentFilter='all';
+  document.querySelectorAll('.cat-tab').forEach(b=>{b.classList.remove('active','btn-blue');b.classList.add('btn-outline');if(b.dataset.cat===cat){b.classList.add('active','btn-blue');b.classList.remove('btn-outline')}});
+  document.querySelectorAll('.stat-item').forEach(i=>i.classList.remove('active'));
+  document.querySelector('.stat-item[data-filter="all"]').classList.add('active');
+  renderShipCards();renderTable();
+}
+function getCategoryShips(){
+  if(currentCategory==='all')return ships;
+  return ships.filter(s=>(s.category||'自有')===currentCategory);
+}
+
+// Auth
+function login(){
+  const pwd=document.getElementById('adminPwd').value.trim();
+  if(pwd===ADMIN_PWD){
+    isAdmin=true;sessionStorage.setItem('crew_admin',pwd);
+    document.getElementById('adminPwd').value='';
+    updateAuthUI();
+  }else{alert('密码错误')}
+}
+function logout(){
+  isAdmin=false;sessionStorage.removeItem('crew_admin');
+  selectedIds.clear();updateAuthUI();renderTable();renderShipCards();
+}
+function updateAuthUI(){
+  document.getElementById('lockStatus').textContent=isAdmin?'🔓 管理模式':'🔒 只读模式';
+  document.getElementById('lockStatus').style.color=isAdmin?'var(--green)':'var(--red)';
+  document.getElementById('loginBtn').style.display=isAdmin?'none':'inline-block';
+  document.getElementById('adminPwd').style.display=isAdmin?'none':'inline-block';
+  document.getElementById('logoutBtn').style.display=isAdmin?'inline-block':'none';
+  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin?'':'none');
+  document.getElementById('batchBar').classList.remove('show');
+}
+// Check session on load
+if(sessionStorage.getItem('crew_admin')===ADMIN_PWD){isAdmin=true;}
+
+
+function daysUntil(d){if(!d)return 9999;return Math.ceil((new Date(d)-new Date())/(86400000))}
+
+async function load(){
+  try{
+    const [c,s]=await Promise.all([
+      fetch(API+'/api/crew').then(r=>r.json()),
+      fetch(API+'/api/ships').then(r=>r.json())
+    ]);
+    crew=c;ships=s;
+    crew.forEach(c=>{if(!c.certificates)c.certificates={competency:{number:'',issueDate:'',expiryDate:''},health:{number:'',issueDate:'',expiryDate:''},training:{number:'',issueDate:'',expiryDate:''}}});
+    updateAuthUI();renderShipCards();updateStats();renderPositionFilter();renderShipSelects();renderTable();loadLog();
+  }catch(e){document.getElementById('crewTable').innerHTML='<tr><td class="loading" colspan="10">❌ '+e.message+'</td></tr>'}
+}
+
+function renderShipCards(){
+  const map={};
+  const catShips=getCategoryShips();
+  catShips.forEach(s=>{map[s.name]={type:s.type,status:s.status,total:0,on:0,off:0,wait:0,left:0,certExp:0,category:s.category||'自有'}});
+  crew.forEach(c=>{
+    const ship=c.ship||'未分配';
+    if(!map[ship])return; // 跳过非当前分类的船舶
+    map[ship].total++;
+    if(c.status==='在船')map[ship].on++;
+    else if(c.status==='休假')map[ship].off++;
+    else if(c.status==='待派')map[ship].wait++;
+    else if(c.status==='已离职')map[ship].left++;
+    const certs=c.certificates||{};
+    ['competency','health','training'].forEach(k=>{const d=daysUntil((certs[k]||{}).expiryDate);if(d<=30&&d>=-999)map[ship].certExp++});
+  });
+  const sorted=Object.entries(map).sort((a,b)=>b[1].total-a[1].total);
+  document.getElementById('shipCards').innerHTML=sorted.map(([name,d])=>{
+    const isActive=currentShip===name?' active':'';
+    const editBtn=isAdmin?'<span style="float:right;cursor:pointer;font-size:12px;opacity:0.5" onclick="event.stopPropagation();editShip(\''+name.replace(/'/g,"\\'")+'\')" title="编辑船舶">⚙️</span>':'';
+    let warn=d.certExp>0?'<div class="cert-warn">⚠ '+d.certExp+' 份证书即将到期</div>':'';
+    return '<div class="ship-card'+isActive+'" onclick="filterByShip(\''+name.replace(/'/g,"\\'")+'\')">'+editBtn+
+      '<div class="ship-name">'+name+'</div><div class="ship-type">'+d.type+' · '+d.status+'</div>'+
+      '<div class="crew-rows">'+
+        '<div class="crew-row on"><span>在船</span><span class="val">'+d.on+'</span></div>'+
+        '<div class="crew-row off"><span>休假</span><span class="val">'+d.off+'</span></div>'+
+        '<div class="crew-row wait"><span>待派</span><span class="val">'+d.wait+'</span></div>'+
+        '<div class="crew-row left"><span>已离职</span><span class="val">'+d.left+'</span></div>'+
+        '<div class="crew-row"><span style="color:var(--text2)">合计</span><span class="val" style="color:#fff">'+d.total+'</span></div>'+
+      '</div>'+warn+'</div>';
+  }).join('');
+}
+
+function filterByShip(name){currentShip=name;currentFilter='all';document.querySelectorAll('.stat-item').forEach(i=>i.classList.remove('active'));document.querySelector('.stat-item[data-filter="all"]').classList.add('active');renderShipCards();renderTable();}
+
+function updateStats(){
+  const catCrew=currentCategory==='all'?crew:crew.filter(c=>getCategoryShips().some(s=>s.name===c.ship));
+  const total=catCrew.length,on=catCrew.filter(c=>c.status==='在船').length;
+  const off=catCrew.filter(c=>c.status==='休假').length,wait=catCrew.filter(c=>c.status==='待派').length;
+  const left=catCrew.filter(c=>c.status==='已离职').length;
+  document.getElementById('statAll').textContent=total;
+  document.getElementById('statOn').textContent=on;
+  document.getElementById('statOff').textContent=off;
+  document.getElementById('statWait').textContent=wait;
+  document.getElementById('statLeft').textContent=left;
+}
+
+document.getElementById('statsBar').addEventListener('click',e=>{
+  const item=e.target.closest('.stat-item');if(!item)return;
+  currentFilter=item.dataset.filter;currentShip='';
+  document.querySelectorAll('.stat-item').forEach(i=>i.classList.remove('active'));
+  item.classList.add('active');renderShipCards();renderTable();
+});
+
+document.getElementById('searchInput').addEventListener('input',renderTable);
+document.getElementById('positionFilter').addEventListener('change',renderTable);
+
+function clearFilters(){currentFilter='all';currentShip='';document.getElementById('searchInput').value='';document.getElementById('positionFilter').value='';document.querySelectorAll('.stat-item').forEach(i=>i.classList.remove('active'));document.querySelector('.stat-item[data-filter="all"]').classList.add('active');renderShipCards();renderTable();}
+
+function renderPositionFilter(){
+  const sel=document.getElementById('positionFilter');
+  const fPos=document.getElementById('fPosition');
+  const unique=[...new Set(crew.map(c=>c.position).filter(Boolean))].sort();
+  const html='<option value="">全部职位</option>'+unique.map(p=>'<option>'+p+'</option>').join('');
+  sel.innerHTML=html;fPos.innerHTML='<option value="">选择职位</option>'+unique.map(p=>'<option>'+p+'</option>').join('');
+}
+
+function renderShipSelects(){
+  const batchSel=document.getElementById('batchShip');
+  const fShip=document.getElementById('fShip');
+  const unique=[...new Set(ships.map(s=>s.name))].sort();
+  batchSel.innerHTML='<option value="">选择船舶...</option>'+unique.map(s=>'<option>'+s+'</option>').join('');
+  fShip.innerHTML='<option value="">未分配</option>'+unique.map(s=>'<option>'+s+'</option>').join('');
+}
+
+function statusBadge(s){const m={在船:'badge-green',休假:'badge-yellow',待派:'badge-orange',已离职:'badge-red'};return '<span class="badge '+(m[s]||'badge-gray')+'">'+s+'</span>';}
+
+function certDot(d){if(!d)return '<div class="cert-dot none" title="未录入"></div>';const days=daysUntil(d);if(days<=0)return '<div class="cert-dot expired" title="已过期"></div>';if(days<=30)return '<div class="cert-dot warn" title="'+days+'天后到期"></div>';return '<div class="cert-dot ok" title="有效期至'+d+'"></div>';}
+
+function getFiltered(){
+  let list=[...crew];
+  if(currentCategory!=='all'){
+    const catShipNames=getCategoryShips().map(s=>s.name);
+    list=list.filter(c=>catShipNames.includes(c.ship));
+  }
+  if(currentShip)list=list.filter(c=>(c.ship||'未分配')===currentShip);
+  else if(currentFilter!=='all')list=list.filter(c=>c.status===currentFilter);
+  const s=document.getElementById('searchInput').value.toLowerCase();
+  if(s)list=list.filter(c=>{
+    const certs=c.certificates||{};
+    const cn=(certs.competency||{}).number||'',hn=(certs.health||{}).number||'',tn=(certs.training||{}).number||'';
+    return c.name.includes(s)||(c.position||'').includes(s)||(c.ship||'').includes(s)||(c.phone||'').includes(s)||cn.includes(s)||hn.includes(s)||tn.includes(s);
+  });
+  const pf=document.getElementById('positionFilter').value;if(pf)list=list.filter(c=>c.position===pf);
+  return list;
+}
+
+function renderTable(){
+  const list=getFiltered();
+  document.getElementById('filteredCount').textContent=list.length;
+  document.getElementById('crewTable').innerHTML=list.length===0
+    ?'<tr><td class="loading" colspan="'+(isAdmin?'13':'11')+'">暂无匹配船员</td></tr>'
+    :list.map(c=>{
+      const certs=c.certificates||{};
+      const comp=certs.competency||{},health=certs.health||{},train=certs.training||{},ins=c.insurance||{};
+      const checked=isAdmin&&selectedIds.has(c.id)?' checked':'';
+      const sel=isAdmin&&selectedIds.has(c.id)?' selected':'';
+      const s=c.status;
+      const canOn=s!=='在船',canOff=s!=='休假',canWait=s!=='待派',canLeave=s!=='已离职';
+      const salaryCell=c.salary?'¥'+Number(c.salary).toLocaleString()+'/月':'<span style="color:var(--text2)">—</span>';
+      const checkboxCell=isAdmin?'<td><input type="checkbox" class="checkone"'+checked+' onchange="toggleOne('+c.id+',this)"></td>':'';
+      const actionsCell=isAdmin?('<td><div class="status-actions">'+
+        (canOn?'<button class="on" onclick="changeStatus('+c.id+',\'在船\')">🟢在船</button>':'')+
+        (canOff?'<button class="off" onclick="changeStatus('+c.id+',\'休假\')">🟡休假</button>':'')+
+        (canWait?'<button class="wait" onclick="changeStatus('+c.id+',\'待派\')">🟠待派</button>':'')+
+        (canLeave?'<button class="leave" onclick="changeStatus('+c.id+',\'已离职\')">🔴离职</button>':'')+
+        '<button onclick="editCrew('+c.id+')" style="margin-left:4px">✏️</button>'+
+        '</div></td>'):'';
+      return '<tr class="'+sel+'">'+
+        checkboxCell+
+        '<td><strong>'+c.name+'</strong></td>'+
+        '<td>'+(c.age||'—')+'</td>'+
+        '<td>'+c.position+'</td>'+
+        '<td>'+(c.ship||'<span style="color:var(--text2)">—</span>')+'</td>'+
+        '<td>'+(c.phone||'<span style="color:var(--text2)">—</span>')+'</td>'+
+        '<td>'+statusBadge(c.status)+'</td>'+
+        '<td><div class="cert-dots">'+certDot(comp.expiryDate)+'<span style="font-size:10px;margin-left:3px;color:'+(comp.expiryDate?'var(--text)':'var(--text2)')+'">'+(comp.number||'—')+'</span></div></td>'+
+        '<td><div class="cert-dots">'+certDot(health.expiryDate)+'<span style="font-size:10px;margin-left:3px;color:'+(health.expiryDate?'var(--text)':'var(--text2)')+'">'+(health.number||'—')+'</span></div></td>'+
+        '<td><div class="cert-dots">'+certDot(train.expiryDate)+'<span style="font-size:10px;margin-left:3px;color:'+(train.expiryDate?'var(--text)':'var(--text2)')+'">'+(train.number||'—')+'</span></div></td>'+
+        '<td><div class="cert-dots">'+certDot(ins.expiryDate)+'<span style="font-size:10px;margin-left:3px;color:'+(ins.expiryDate?'var(--text)':'var(--text2)')+'">'+(ins.type||ins.number||'—')+'</span></div></td>'+
+        '<td>'+salaryCell+'</td>'+
+        actionsCell+
+      '</tr>';
+    }).join('');
+  if(isAdmin)updateBatchBar();
+}
+
+async function changeStatus(id,status){
+  try{
+    const r=await fetch(API+'/api/crew/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pwd':ADMIN_PWD},body:JSON.stringify({status})});
+    if(!r.ok)throw new Error('操作失败');const u=await r.json();
+    const i=crew.findIndex(c=>c.id===id);if(i>=0)crew[i]=u;
+    updateStats();renderShipCards();renderTable();loadLog();
+  }catch(e){alert(e.message)}
+}
+
+function toggleAll(cb){const list=getFiltered();if(cb.checked)list.forEach(c=>selectedIds.add(c.id));else list.forEach(c=>selectedIds.delete(c.id));renderTable();}
+function toggleOne(id,cb){cb.checked?selectedIds.add(id):selectedIds.delete(id);updateBatchBar();}
+function updateBatchBar(){const bar=document.getElementById('batchBar');bar.classList.toggle('show',selectedIds.size>0);document.getElementById('batchCount').textContent='已选 '+selectedIds.size+' 人';}
+function clearSelection(){selectedIds.clear();renderTable();}
+
+async function batchReassign(){
+  const toShip=document.getElementById('batchShip').value;if(!toShip)return alert('请选择目标船舶');
+  if(!confirm('确认将 '+selectedIds.size+' 名船员调入「'+toShip+'」？'))return;
+  try{
+    const r=await fetch(API+'/api/crew/batch-reassign',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pwd':ADMIN_PWD},body:JSON.stringify({crewIds:[...selectedIds],toShip})});
+    if(!r.ok)throw new Error('操作失败');
+    [...selectedIds].forEach(id=>{const i=crew.findIndex(c=>c.id===id);if(i>=0)crew[i].ship=toShip;});
+    selectedIds.clear();updateStats();renderShipCards();renderTable();loadLog();
+  }catch(e){alert(e.message)}
+}
+
+function showAddModal(){
+  document.getElementById('modalTitle').textContent='添加船员';
+  ['editId','fName','fAge','fPosition','fShip','fPhone','fSalary','fCompNum','fCompIssue','fCompExpiry','fHealthNum','fHealthIssue','fHealthExpiry','fTrainNum','fTrainIssue','fTrainExpiry','fInsType','fInsNum','fInsIssue','fInsExpiry'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fStatus').value='在船';document.getElementById('crewDeleteBtn').style.display='none';
+  document.getElementById('crewModal').classList.add('show');
+}
+
+function editCrew(id){
+  const c=crew.find(x=>x.id===id);if(!c)return;
+  const certs=c.certificates||{};
+  const comp=certs.competency||{},health=certs.health||{},train=certs.training||{};
+  document.getElementById('modalTitle').textContent='编辑船员 · '+c.name;
+  document.getElementById('editId').value=c.id;document.getElementById('fName').value=c.name||'';
+  document.getElementById('fAge').value=c.age||'';document.getElementById('fPosition').value=c.position||'';
+  document.getElementById('fShip').value=c.ship||'';document.getElementById('fPhone').value=c.phone||'';
+  document.getElementById('fSalary').value=c.salary||'';
+  document.getElementById('fStatus').value=c.status||'在船';
+  document.getElementById('fCompNum').value=comp.number||'';document.getElementById('fCompIssue').value=comp.issueDate||'';document.getElementById('fCompExpiry').value=comp.expiryDate||'';
+  document.getElementById('fHealthNum').value=health.number||'';document.getElementById('fHealthIssue').value=health.issueDate||'';document.getElementById('fHealthExpiry').value=health.expiryDate||'';
+  document.getElementById('fTrainNum').value=train.number||'';document.getElementById('fTrainIssue').value=train.issueDate||'';document.getElementById('fTrainExpiry').value=train.expiryDate||'';
+  const ins=c.insurance||{};document.getElementById('fInsType').value=ins.type||'';document.getElementById('fInsNum').value=ins.number||'';document.getElementById('fInsIssue').value=ins.issueDate||'';document.getElementById('fInsExpiry').value=ins.expiryDate||'';
+  document.getElementById('crewDeleteBtn').style.display='inline-block';
+  document.getElementById('crewModal').classList.add('show');
+}
+
+function closeModal(){document.getElementById('crewModal').classList.remove('show')}
+
+async function deleteCrew(){
+  const id=parseInt(document.getElementById('editId').value);
+  const name=document.getElementById('fName').value;
+  if(!id)return;
+  if(!confirm('确认删除船员「'+name+'」？此操作不可撤销。'))return;
+  try{
+    const r=await fetch(API+'/api/crew/'+id,{method:'DELETE',headers:{'x-admin-pwd':ADMIN_PWD}});
+    if(!r.ok)throw new Error('删除失败');
+    crew=crew.filter(c=>c.id!==id);
+    closeModal();updateStats();renderShipCards();renderTable();renderPositionFilter();loadLog();
+  }catch(e){alert(e.message)}
+}
+
+async function saveCrew(){
+  const id=document.getElementById('editId').value;
+  const body={
+    name:document.getElementById('fName').value.trim(),
+    age:parseInt(document.getElementById('fAge').value)||null,
+    position:document.getElementById('fPosition').value,
+    ship:document.getElementById('fShip').value||null,
+    phone:document.getElementById('fPhone').value.trim(),
+    salary:parseFloat(document.getElementById('fSalary').value)||null,
+    status:document.getElementById('fStatus').value,
+    certificates:{
+      competency:{number:document.getElementById('fCompNum').value.trim(),issueDate:document.getElementById('fCompIssue').value,expiryDate:document.getElementById('fCompExpiry').value},
+      health:{number:document.getElementById('fHealthNum').value.trim(),issueDate:document.getElementById('fHealthIssue').value,expiryDate:document.getElementById('fHealthExpiry').value},
+      training:{number:document.getElementById('fTrainNum').value.trim(),issueDate:document.getElementById('fTrainIssue').value,expiryDate:document.getElementById('fTrainExpiry').value}
+    },
+    insurance:{type:document.getElementById('fInsType').value.trim(),number:document.getElementById('fInsNum').value.trim(),issueDate:document.getElementById('fInsIssue').value,expiryDate:document.getElementById('fInsExpiry').value}
+  };
+  if(!body.name)return alert('请输入姓名');
+  try{
+    let r,u;
+    if(id){
+      r=await fetch(API+'/api/crew/'+id,{method:'PUT',headers:{'Content-Type':'application/json','x-admin-pwd':ADMIN_PWD},body:JSON.stringify(body)});
+      u=await r.json();const i=crew.findIndex(c=>c.id==parseInt(id));if(i>=0)crew[i]=u;
+    }else{
+      r=await fetch(API+'/api/crew',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pwd':ADMIN_PWD},body:JSON.stringify(body)});
+      u=await r.json();crew.push(u);
+    }
+    closeModal();updateStats();renderShipCards();renderPositionFilter();renderTable();loadLog();
+  }catch(e){alert('保存失败: '+e.message)}
+}
+
+async function loadLog(){
+  try{
+    const log=await fetch(API+'/api/crew-log').then(r=>r.json());
+    document.getElementById('logList').innerHTML=log.length===0
+      ?'<div class="loading">暂无操作记录</div>'
+      :log.slice(-30).reverse().map(l=>{
+        const t=new Date(l.time);
+        const ts=t.toLocaleDateString('zh-CN')+' '+t.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+        return '<div class="log-item"><span class="time">'+ts+'</span><span class="actor">'+l.crewName+'</span><span class="detail">'+l.action+'：<span style="color:var(--text2)">'+l.oldVal+'</span><span class="arrow">→</span><span style="color:var(--blue)">'+l.newVal+'</span></span></div>';
+      }).join('');
+  }catch(e){}
+}
+
+document.getElementById('crewModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
+document.getElementById('shipModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeShipModal()});
+
+// ===== File upload =====
+async function uploadFile(input){
+  const file=input.files[0];if(!file)return;
+  const form=new FormData();form.append('file',file);
+  const msg=document.getElementById('uploadMsg');
+  msg.style.display='block';msg.style.background='rgba(0,180,216,0.1)';msg.style.border='1px solid var(--blue)';msg.style.color='var(--blue)';msg.textContent='⏳ 正在解析文件...';
+  try{
+    const r=await fetch(API+'/api/crew/upload',{method:'POST',headers:{'x-admin-pwd':ADMIN_PWD},body:form});
+    const result=await r.json();
+    if(result.ok){
+      msg.style.background='rgba(0,227,150,0.1)';msg.style.border='1px solid var(--green)';msg.style.color='var(--green)';
+      msg.innerHTML='✅ 导入完成！新增 <b>'+result.created+'</b> 人，更新 <b>'+result.updated+'</b> 人，共 <b>'+result.total+'</b> 名船员';
+      load();
+    }else{
+      msg.style.background='rgba(255,71,87,0.1)';msg.style.border='1px solid var(--red)';msg.style.color='var(--red)';
+      msg.textContent='❌ '+result.error;
+    }
+  }catch(e){
+    msg.style.background='rgba(255,71,87,0.1)';msg.style.border='1px solid var(--red)';msg.style.color='var(--red)';
+    msg.textContent='❌ 上传失败: '+e.message;
+  }
+  input.value='';
+  setTimeout(()=>{msg.style.display='none'},8000);
+}
+
+function downloadTemplate(){
+  const headers=['姓名','年龄','职位','船舶','电话','状态','薪资','适任证书编号','适任发证日期','适任到期日期','健康证编号','健康证发证日期','健康证到期日期','培训合格证编号','培训发证日期','培训到期日期'];
+  const sample=['张三',45,'船长','航友08','13800001111','在船',15000,'SH2024001','2024-03-15','2026-03-15','JK2024001','2024-06-01','2026-06-01','PX2024001','2024-01-10','2027-01-10'];
+  const csv='﻿'+headers.join(',')+'\n'+sample.join(',');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='船员导入模板.csv';
+  a.click();URL.revokeObjectURL(url);
+}
+
+// ===== Ship management =====
+function showShipModal(){
+  document.getElementById('shipModalTitle').textContent='添加船舶';
+  document.getElementById('sEditId').value='';
+  document.getElementById('sDeleteBtn').style.display='none';
+  ['sName','sType','sStatus','sPort','sCrewLimit'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('shipModal').classList.add('show');
+}
+function editShip(name){
+  const s=ships.find(x=>x.name===name);if(!s)return;
+  document.getElementById('shipModalTitle').textContent='编辑船舶 · '+s.name;
+  document.getElementById('sEditId').value=s.id;
+  document.getElementById('sDeleteBtn').style.display='inline-block';
+  document.getElementById('sName').value=s.name||'';
+  document.getElementById('sType').value=s.type||'';
+  document.getElementById('sStatus').value=s.status||'在航';
+  document.getElementById('sPort').value=s.port||'';
+  document.getElementById('sCrewLimit').value=s.crewLimit||'';
+  document.getElementById('shipModal').classList.add('show');
+}
+function closeShipModal(){document.getElementById('shipModal').classList.remove('show')}
+async function saveShip(){
+  const id=document.getElementById('sEditId').value;
+  const body={
+    name:document.getElementById('sName').value.trim(),
+    type:document.getElementById('sType').value.trim(),
+    status:document.getElementById('sStatus').value,
+    port:document.getElementById('sPort').value.trim(),
+    crewLimit:parseInt(document.getElementById('sCrewLimit').value)||null
+  };
+  if(!body.name)return alert('请输入船名');
+  try{
+    let r,u;
+    if(id){
+      r=await fetch(API+'/api/ships/'+id,{method:'PUT',headers:{'Content-Type':'application/json','x-admin-pwd':ADMIN_PWD},body:JSON.stringify(body)});
+      u=await r.json();const i=ships.findIndex(s=>s.id==parseInt(id));if(i>=0)ships[i]=u;
+    }else{
+      r=await fetch(API+'/api/ships',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pwd':ADMIN_PWD},body:JSON.stringify(body)});
+      u=await r.json();ships.push(u);
+    }
+    closeShipModal();renderShipSelects();renderShipCards();renderTable();
+  }catch(e){alert('保存失败: '+e.message)}
+}
+async function deleteShip(id,name){
+  if(!confirm('确认删除船舶「'+name+'」？\n\n该船的船员将变为"未分配"。'))return;
+  try{
+    await fetch(API+'/api/ships/'+id,{method:'DELETE',headers:{'x-admin-pwd':ADMIN_PWD}});
+    ships=ships.filter(s=>s.id!=id);
+    crew.forEach(c=>{if(c.ship===name)c.ship=null});
+    if(currentShip===name)currentShip='';
+    renderShipSelects();renderShipCards();renderTable();
+  }catch(e){alert('删除失败: '+e.message)}
+}
+
+load();
+</script>
+</body>
+</html>
